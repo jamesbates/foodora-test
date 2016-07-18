@@ -1,0 +1,70 @@
+Foodora test specialdays-to-schedule migration and restore CLI
+==============================================================
+
+Introduction
+------------
+This command-line tool will allow you, in emergencies, to implement the "SpecialDays"
+feature of the Foodora application (https://gist.github.com/leandrolages/8224f94a6539f62c0360)
+by temporarily setting all restaurants' regular schedule according to the special days information.
+
+It is intended purely as a quick-and-dirty hack, and comes a substantial number of caveats
+(see section "Usage"). We strongly suggest trying it out on a db copy first, to ensure that the
+intended migration took place.
+
+Prerequisites
+-------------
+In order to run this tool, you will need a recent (>= 5.6) version of PHP installed, with the following
+features enabled:
+- CLI
+- PDO
+- MySQL driver
+
+You will obviously also require a database instance, containing the Foodora schedule application you
+wish to "fix".
+
+Configuration
+-------------
+To allow the tool to connect to the database, you will need to configure access to it in the app_configuration.ini file.
+In the [database] section, you must define the values 'dbhost', 'dbname', 'username' and 'password' to values which
+are appropriate for your environment. Consult your DB admin if you are unsure.
+
+Database
+--------
+The current Foodora database contains no schema management. This tool requires adding a table to the database in order to
+store backup schedules which will be overwritten when activating the "SpecialDays". This allows restoration of the regular
+schedule, once the special days period is over.
+
+In order to know whether the backup table needs to be created, schema management was introduced into the database. The
+'schemas' subfolder of this project contains the required DDL to be executed for schema upgrades, and the tool will
+run all required updates upon startup.
+
+If after using this tool during the special days period, you no longer need it, you may safely remove the "db_schema"
+and "vendor_schedule_backup" tables which these DDL scripts create.
+
+Usage
+-----
+When all prerequisites are met, and you have properly configured DB access, you can run the tool as follows:
+
+php run.php -activate
+
+This will scan the "SpecialDays" of each vendor, and updates its regular schedule based on the defined SpecialDays.
+
+Once the special days period is over, you can restore the previously defined schedule for each vendor, by calling:
+
+php run.pgp -restore
+
+Caveats
+-------
+As stated in the introduction, this tool is a quick and dirty workaround for a missing, or erroneous implementation of the
+"SpecialDays" feature.
+
+When activating the special days, this tools WILL NOT check the current date. This means that WHATEVER the current date, all
+vendors' regular schedule WILL BE OVERWRITTEN with any special days defined for that vendor.
+
+So if you have special defined for e.g. 24.12.2015 for a vendor, then that vendor's regular Thursday schedule WILL BE OVERWRITTEN,
+regardless of WHEN you execute the command. It is up to you to ensure that the activation occurs during the correct time period.
+
+When activating a special days schedule, the regular schedule for that vendor is overwritte. The regular schedule that was present
+before is backed up in a separate table, so it can be restored later. As a result, if you activate the special days A SECOND TIME,
+original backup up vendor schedule will be LOST (since you will have overwritten it with the special days schedule).
+
